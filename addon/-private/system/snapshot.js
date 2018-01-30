@@ -215,7 +215,9 @@ export default class Snapshot {
   belongsTo(keyName, options) {
     let id = options && options.id;
     let relationship;
+    let inverseInternalModel;
     let result;
+    let store = this._internalModel.store;
 
     if (id && keyName in this._belongsToIds) {
       return this._belongsToIds[keyName];
@@ -225,17 +227,19 @@ export default class Snapshot {
       return this._belongsToRelationships[keyName];
     }
 
-    relationship = this._internalModel._relationships.get(keyName);
-    if (!(relationship && relationship.relationshipMeta.kind === 'belongsTo')) {
+    let relationshipMeta = store._relationshipFor(this.modelName, null, keyName);
+    if (!(relationshipMeta && relationshipMeta.kind === 'belongsTo')) {
       throw new EmberError("Model '" + inspect(this.record) + "' has no belongsTo relationship named '" + keyName + "' defined.");
     }
 
-    let {
-      hasAnyRelationshipData,
-      inverseInternalModel
-    } = relationship;
+    relationship = this._internalModel._modelData._relationships.get(keyName);
 
-    if (hasAnyRelationshipData) {
+    let value = relationship.getData();
+    let data = value && value.data;
+
+    inverseInternalModel = data && store._internalModelForResource(data);
+
+    if (value && value.data !== undefined) {
       if (inverseInternalModel && !inverseInternalModel.isDeleted()) {
         if (id) {
           result = get(inverseInternalModel, 'id');
@@ -298,24 +302,25 @@ export default class Snapshot {
       return this._hasManyRelationships[keyName];
     }
 
-    relationship = this._internalModel._relationships.get(keyName);
-    if (!(relationship && relationship.relationshipMeta.kind === 'hasMany')) {
+    let store = this._internalModel.store;
+    let relationshipMeta = store._relationshipFor(this.modelName, null, keyName);
+    if (!(relationshipMeta && relationshipMeta.kind === 'hasMany')) {
       throw new EmberError("Model '" + inspect(this.record) + "' has no hasMany relationship named '" + keyName + "' defined.");
     }
 
-    let {
-      hasAnyRelationshipData,
-      members
-    } = relationship;
+    relationship = this._internalModel._modelData._relationships.get(keyName);
 
-    if (hasAnyRelationshipData) {
+    let value = relationship.getData();
+
+    if (value.data) {
       results = [];
-      members.forEach((member) => {
-        if (!member.isDeleted()) {
+      value.data.forEach((member) => {
+        let internalModel = store._internalModelForResource(member);
+        if (!internalModel.isDeleted()) {
           if (ids) {
             results.push(member.id);
           } else {
-            results.push(member.createSnapshot());
+            results.push(internalModel.createSnapshot());
           }
         }
       });

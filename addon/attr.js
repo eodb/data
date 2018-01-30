@@ -16,10 +16,8 @@ function getDefaultValue(record, options, key) {
   }
 }
 
-function hasValue(record, key) {
-  return key in record._attributes ||
-         key in record._inFlightAttributes ||
-         key in record._data;
+function hasValue(internalModel, key) {
+  return internalModel._modelData.hasAttr(key);
 }
 
 /**

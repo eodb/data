@@ -130,7 +130,6 @@ test("a sync belongs to relationship to an unloaded record can restore that reco
 
   let rematerializedPerson = bob.get('person');
   assert.equal(rematerializedPerson.get('id'), '1');
-  assert.equal(rematerializedPerson.get('name'), 'Adam Sunderland');
   // the person is rematerialized; the previous person is *not* re-used
   assert.notEqual(rematerializedPerson, adam, 'the person is rematerialized, not recycled');
 });
