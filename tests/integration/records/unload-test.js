@@ -130,6 +130,20 @@ test('can unload a single record', function(assert) {
         id: '1',
         attributes: {
           name: 'Adam Sunderland'
+        },
+        relationships: {
+          cars: {
+            data: [{
+              id: 1,
+              type: 'car'
+            }]
+          },
+          boats: {
+            data: [{
+              id: 2,
+              type: 'boat'
+            }]
+          }
         }
       }
     });
@@ -139,7 +153,7 @@ test('can unload a single record', function(assert) {
   assert.equal(env.store.peekAll('person').get('length'), 1, 'one person record loaded');
   assert.equal(env.store._internalModelsFor('person').length, 1, 'one person internalModel loaded');
 
-  Ember.run(function() {
+  run(function() {
     adam.unloadRecord();
   });
 
@@ -2293,7 +2307,7 @@ test('unload invalidates link promises', function(assert) {
       isUnloaded = true;
       run(() => {
         boat2.unloadRecord();
-        // person.get('boats');
+        person.get('boats');
       });
 
       assert.deepEqual(boats.mapBy('id'), ['3'], 'unloaded boat is removed from ManyArray');

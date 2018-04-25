@@ -2476,7 +2476,7 @@ test("Relationship.clear removes all records correctly", function(assert) {
     post = env.store.peekRecord('post', 2);
   });
 
-  run(function() {
+  run(() => {
     post._internalModel._modelData._relationships.get('comments').clear();
     let comments = A(env.store.peekAll('comment'));
     assert.deepEqual(comments.mapBy('post'), [null, null, null]);
@@ -3483,7 +3483,11 @@ test("deleted records should stay deleted", function(assert) {
       }]
     });
 
-    assert.equal(get(user, 'messages.length'), 2, 'user should have 2 message since 1 was deleted');
+    assert.deepEqual(
+      get(user, 'messages').mapBy('id'),
+      ['message-2', 'message-3'],
+      'user should have 2 message since 1 was deleted'
+    );
   });
 });
 

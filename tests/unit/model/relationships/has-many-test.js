@@ -1956,10 +1956,10 @@ test('DS.hasMany proxy is destroyed', function(assert) {
     run(() => {
       tag.unloadRecord();
       // TODO Check all unloading behavior
-      //assert.equal(people.isDestroying, false, 'people is NOT destroying sync after unloadRecord');
+      assert.equal(people.isDestroying, false, 'people is NOT destroying sync after unloadRecord');
       assert.equal(people.isDestroyed, false, 'people is NOT destroyed sync after unloadRecord');
       // TODO Check if this matters
-      // assert.equal(peopleProxy.isDestroying, false, 'peopleProxy is destroying sync after unloadRecord');
+      assert.equal(peopleProxy.isDestroying, false, 'peopleProxy is destroying sync after unloadRecord');
       assert.equal(peopleProxy.isDestroyed, false, 'peopleProxy is NOT YET destroyed sync after unloadRecord');
     });
 
@@ -1985,6 +1985,7 @@ test('DS.ManyArray is lazy', function(assert) {
 
   let env = setupStore({ tag: Tag, person: Person });
   let tag = env.store.createRecord('tag');
+  // TODO replace with a test that checks for wherever the new ManyArray location is
   //let hasManyRelationship = tag.hasMany('people').hasManyRelationship;
 
   //assert.ok(!hasManyRelationship._manyArray);
