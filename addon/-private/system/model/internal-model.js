@@ -329,6 +329,7 @@ export default class InternalModel {
     // move to an empty never-loaded state
     this.resetRecord();
     this._modelData.unloadRecord();
+    this.updateRecordArrays();
   }
 
   deleteRecord() {

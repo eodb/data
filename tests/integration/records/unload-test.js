@@ -207,7 +207,7 @@ test('can unload all records for a given type', function(assert) {
   assert.equal(env.store.peekAll('car').get('length'), 1, 'one car record loaded');
   assert.equal(env.store._internalModelsFor('car').length, 1, 'one car internalModel loaded');
 
-  Ember.run(function() {
+  run(function() {
     env.store.unloadAll('person');
   });
 

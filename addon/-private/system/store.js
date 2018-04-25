@@ -2385,7 +2385,7 @@ Store = Service.extend({
   },
 
   _relationshipFor(modelName, id, key) {
-    let modelClass = this._modelFor(modelName);
+    let modelClass = this.modelFor(modelName);
     let relationshipsByName = get(modelClass, 'relationshipsByName');
     return relationshipsByName.get(key);
   },

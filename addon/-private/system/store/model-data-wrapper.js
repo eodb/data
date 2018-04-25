@@ -19,7 +19,7 @@ export default class ModelDataWrapper {
   relationshipsDefinitionFor(modelName) {
     let relationships = this._relationshipsDefCache[modelName];
     if (!relationships) {
-      let modelClass = this.store._modelFor(modelName);
+      let modelClass = this.store.modelFor(modelName);
       relationships = get(modelClass, 'relationshipsObject');
       this._relationshipsDefCache[modelName] = relationships;
     }
@@ -27,13 +27,13 @@ export default class ModelDataWrapper {
   }
 
   inverseForRelationship(modelName, key) {
-    let modelClass = this.store._modelFor(modelName);
+    let modelClass = this.store.modelFor(modelName);
     return this.relationshipsDefinitionFor(modelName)[key]._inverseKey(this.store, modelClass);
   }
 
   // TODO Igor David cleanup
   inverseIsAsyncForRelationship(modelName, key) {
-    let modelClass = this.store._modelFor(modelName);
+    let modelClass = this.store.modelFor(modelName);
     return this.relationshipsDefinitionFor(modelName)[key]._inverseIsAsync(this.store, modelClass);
   }
 
