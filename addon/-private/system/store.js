@@ -2432,7 +2432,7 @@ Store = Service.extend({
 
   _fetchHasManyByData(resource) {
     let internalModels = resource.data.map((json) => this._internalModelForResource(json));
-    return { promise: this.findMany(internalModels) };
+    return { promise: this._scheduleFetchMany(internalModels) };
   },
 
   _fetchHasManyByLink(resource, parentInternalModel, relationshipMeta) {
@@ -2458,9 +2458,15 @@ Store = Service.extend({
     if (shouldFindViaLink) {
       return this._fetchHasManyByLink(resource, parentInternalModel, relationshipMeta);
     }
+    if (!relationshipIsStale && hasAnyRelationshipData && hasRelatedResources && !relationshipIsEmpty) {
+      let internalModels = resource.data.map((json) => this._internalModelForResource(json));
+
+      return { promise: this.findMany(internalModels) };
+    }
     if (hasAnyRelationshipData && !relationshipIsEmpty) {
       return this._fetchHasManyByData(resource);
     }
+
     return { promise: RSVP.resolve([]) };
   },
 

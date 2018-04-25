@@ -511,17 +511,22 @@ export default class InternalModel {
     let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
     let async = relationshipMeta.options.async;
     let isAsync = typeof async === 'undefined' ? true : async;
+
     if (isAsync) {
       let promiseArray = this._relationshipPromisesCache[key];
+
       if (!promiseArray) {
         promiseArray = PromiseManyArray.create(this.fetchAsyncHasMany(relationshipMeta, jsonApi));
         this._relationshipPromisesCache[key] = promiseArray;
       }
+
       return promiseArray;
     } else {
       let manyArray = this.manyArray(relationshipMeta, jsonApi);
+
       manyArray.set('isLoaded', true);
       assert(`You looked up the '${key}' relationship on a '${this.type.modelName}' with id ${this.id} but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async ('DS.hasMany({ async: true })')`, !manyArray.anyUnloaded());
+
       return manyArray;
     }
   }
@@ -557,9 +562,10 @@ export default class InternalModel {
     }
 
     let jsonApi = this._modelData.getHasMany(key);
+    jsonApi._relationship.setRelationshipIsStale(true);
     let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
     let promise;
-    // TODO Igor, be robust about caching
+
     if (jsonApi.links && jsonApi.links.related) {
       promise = this.fetchAsyncHasMany(relationshipMeta, jsonApi).promise;
     } else {
@@ -567,6 +573,7 @@ export default class InternalModel {
       let manyArray = this.manyArray(relationshipMeta, jsonApi);
       promise = this.store._scheduleFetchMany(internalModels).then(() => manyArray);
     }
+
     // TODO igor Seems like this would mess with promiseArray wrapping, investigate
     this._updateLoadingPromiseForHasMany(key, promise);
     return promise;
