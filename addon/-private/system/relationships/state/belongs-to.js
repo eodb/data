@@ -18,10 +18,6 @@ export default class BelongsToRelationship extends Relationship {
       this.removeModelData(this.inverseModelData);
     }
 
-    // TODO remove these
-    this.setHasData(true);
-    this.setHasLoaded(true);
-
     this.setHasAnyRelationshipData(true);
     this.setRelationshipIsStale(false);
     this.setRelationshipIsEmpty(false);
@@ -159,7 +155,7 @@ export default class BelongsToRelationship extends Relationship {
     if (this.inverseModelData) {
       data = this.inverseModelData.getResourceIdentifier();
     }
-    if (this.inverseModelData === null && this.hasData) {
+    if (this.inverseModelData === null && this.hasAnyRelationshipData) {
       data = null;
     }
     if (this.link) {

@@ -2442,13 +2442,21 @@ Store = Service.extend({
     if (!resource) {
       return { promise: RSVP.resolve([]) };
     }
-    if (resource.hasLoaded) {
-      return this._fetchHasManyByData(resource);
-    }
-    if (resource.links && resource.links.related) {
+
+    let {
+      relationshipIsStale,
+      hasRelatedResources,
+      hasAnyRelationshipData,
+      relationshipIsEmpty
+    } = resource._relationship;
+
+    let shouldFindViaLink = resource.links && resource.links.related
+     && (relationshipIsStale || !hasRelatedResources);
+
+    if (shouldFindViaLink) {
       return this._fetchHasManyByLink(resource, parentInternalModel, relationshipMeta);
     }
-    if (resource.data) {
+    if (hasAnyRelationshipData && !relationshipIsEmpty) {
       return this._fetchHasManyByData(resource);
     }
     return { promise: RSVP.resolve([]) };

@@ -561,10 +561,6 @@ export default class InternalModel {
     let promise;
     // TODO Igor, be robust about caching
     if (jsonApi.links && jsonApi.links.related) {
-      // TODO Igor doing this for now to make sure to go through link
-      delete jsonApi.data;
-      // TODO Igor move this somewhere nicer
-      jsonApi.hasLoaded = false;
       promise = this.fetchAsyncHasMany(relationshipMeta, jsonApi).promise;
     } else {
       let internalModels = this.store._getHasManyByJsonApiResource(jsonApi);

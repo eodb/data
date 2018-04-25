@@ -24,8 +24,6 @@ const {
   removeModelDataFromInverse,
   removeModelDataFromOwn,
   removeModelDatas,
-  setHasData,
-  setHasLoaded,
   updateLink,
   updateMeta,
   updateModelDatasFromAdapter
@@ -47,8 +45,6 @@ const {
   'removeModelDataFromInverse',
   'removeModelDataFromOwn',
   'removeModelDatas',
-  'setHasData',
-  'setHasLoaded',
   'updateLink',
   'updateMeta',
   'updateModelDatasFromAdapter'
@@ -74,8 +70,6 @@ export default class Relationship {
     this.inverseKeyForImplicit = this._tempModelName + this.key;
     this.linkPromise = null;
     this.meta = null;
-    this.hasData = false;
-    this.hasLoaded = false;
     this.__inverseMeta = undefined;
 
 
@@ -220,8 +214,6 @@ export default class Relationship {
   }
 
   inverseDidDematerialize(inverseModelData) {
-    this.linkPromise = null;
-    this.setHasLoaded(false);
     this.setRelationshipIsStale(true);
 
     if (!this.isAsync) {
@@ -296,7 +288,6 @@ export default class Relationship {
       this.setupInverseRelationship(modelData);
     }
     this.flushCanonicalLater();
-    this.setHasData(true);
     this.setHasAnyRelationshipData(true);
   }
 
@@ -361,7 +352,6 @@ export default class Relationship {
         modelData._implicitRelationships[this.inverseKeyForImplicit].addModelData(this.modelData);
       }
     }
-    this.setHasData(true);
     this.setHasAnyRelationshipData(true);
   }
 
@@ -486,7 +476,7 @@ export default class Relationship {
 
   updateLink(link, initial, alsoUpdatedData) {
     heimdall.increment(updateLink);
-    warn(`You pushed a record of type '${this.modelData.modelName}' with a relationship '${this.key}' configured as 'async: false'. You've included a link but no primary data, this may be an error in your payload.`, this.isAsync || this.hasData , {
+    warn(`You pushed a record of type '${this.modelData.modelName}' with a relationship '${this.key}' configured as 'async: false'. You've included a link but no primary data, this may be an error in your payload.`, this.isAsync || this.hasAnyRelationshipData , {
       id: 'ds.store.push-link-for-sync-relationship'
     });
     assert(`You have pushed a record of type '${this.modelData.modelName}' with '${this.key}' as a link, but the value of that link is not a string.`, typeof link === 'string' || link === null);
@@ -499,7 +489,6 @@ export default class Relationship {
     }
 
     this.link = link;
-    this.hasLoaded = false;
     this.setRelationshipIsStale(true);
 
     if (!initial) {
@@ -511,53 +500,13 @@ export default class Relationship {
 
   updateModelDatasFromAdapter(modelDatas) {
     heimdall.increment(updateModelDatasFromAdapter);
-    this.setHasData(true);
+    this.setHasAnyRelationshipData(true);
     //TODO(Igor) move this to a proper place
     //TODO Once we have adapter support, we need to handle updated and canonical changes
     this.computeChanges(modelDatas);
   }
 
   notifyRecordRelationshipAdded() { }
-
-  /*
-   `hasData` for a relationship is a flag to indicate if we consider the
-   content of this relationship "known". Snapshots uses this to tell the
-   difference between unknown (`undefined`) or empty (`null`). The reason for
-   this is that we wouldn't want to serialize unknown relationships as `null`
-   as that might overwrite remote state.
-
-   All relationships for a newly created (`store.createRecord()`) are
-   considered known (`hasData === true`).
-   */
-  setHasData(value) {
-    heimdall.increment(setHasData);
-    this.hasData = value;
-  }
-
-  /*
-   `hasLoaded` is a flag to indicate if we have gotten data from the adapter or
-   not when the relationship has a link.
-
-   This is used to be able to tell when to fetch the link and when to return
-   the local data in scenarios where the local state is considered known
-   (`hasData === true`).
-
-   Updating the link will automatically set `hasLoaded` to `false`.
-   */
-  setHasLoaded(value) {
-    heimdall.increment(setHasLoaded);
-    this.hasLoaded = value;
-    this.setRelationshipIsStale(!value);
-  }
-
-  _shouldFindViaLink() {
-    if (!this.link) {
-      return false;
-    }
-
-    return this.relationshipIsStale ||
-      !this.hasRelatedResources;
-  }
 
   setHasAnyRelationshipData(value) {
     this.hasAnyRelationshipData = value;
@@ -624,10 +573,6 @@ export default class Relationship {
       let relationshipIsEmpty = payload.data === null ||
         (Array.isArray(payload.data) && payload.data.length === 0);
 
-      // TODO get rid of these crazies
-      this.setHasData(true);
-      this.setHasLoaded(true);
-
       this.setHasAnyRelationshipData(true);
       this.setRelationshipIsStale(false);
       this.setRelationshipIsEmpty(relationshipIsEmpty);
@@ -635,7 +580,6 @@ export default class Relationship {
         relationshipIsEmpty || !this.localStateIsEmpty()
       );
     } else if (hasLink) {
-      this.setHasLoaded(false);
       this.setRelationshipIsStale(true);
     }
   }

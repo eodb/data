@@ -192,7 +192,7 @@ export default class ManyRelationship extends Relationship {
 
   getData() {
     let payload = {};
-    if (this.hasData) {
+    if (this.hasAnyRelationshipData) {
       payload.data = this.currentState.map((modelData) => modelData.getResourceIdentifier());
     }
     if (this.link) {
@@ -201,10 +201,13 @@ export default class ManyRelationship extends Relationship {
       }
     }
     if (this.meta) {
-      // TODO Igor consider whether we should namespace this
       payload.meta = this.meta;
     }
-    payload.hasLoaded = this.hasLoaded;
+
+    // TODO @runspired: the @igor refactor is too limiting for relationship state
+    //   we should reconsider where we fetch from.
+    payload._relationship = this;
+
     return payload;
   }
 
@@ -226,7 +229,7 @@ export default class ManyRelationship extends Relationship {
   }
 
   localStateIsEmpty() {
-    let modelDatas = this.currentState;
+    let modelDatas = this.canonicalState;
     let isLoaded = false;
 
     if (modelDatas.length) {
