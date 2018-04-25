@@ -518,16 +518,8 @@ export default class ModelData {
     });
   }
 
-  clientDidCreate(properties) {
+  clientDidCreate() {
     this._isNew = true;
-    // TODO @runspired this should also be coalesced into some form of internalModel.setState()
-    let relationships = this.storeWrapper.relationshipsDefinitionFor(this.modelName);
-    let keys = Object.keys(relationships);
-    keys.forEach((key) => {
-      if (properties[key] !== undefined) {
-        this._relationships.get(key).setHasData(true);
-      }
-    });
   }
 
 

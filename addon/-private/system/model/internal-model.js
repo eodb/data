@@ -803,8 +803,8 @@ export default class InternalModel {
     }
   }
 
-  didCreateRecord(properties) {
-    this._modelData.clientDidCreate(properties);
+  didCreateRecord() {
+    this._modelData.clientDidCreate();
   }
 
   rollbackAttributes() {

@@ -335,6 +335,8 @@ Store = Service.extend({
 
         let internalModel = this._buildInternalModel(normalizedModelName, properties.id);
         internalModel.loadedData();
+        // TODO WAT this exists just to proxy `isNew` to ModelData
+        internalModel.didCreateRecord();
         return internalModel.getRecord(properties);
       });
     });
