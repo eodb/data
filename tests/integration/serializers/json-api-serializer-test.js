@@ -426,7 +426,6 @@ test('a belongsTo relationship set to a new record will not show in the relation
     });
 
     let handle = store.peekRecord('handle', 1);
-
     let user = store.createRecord('user');
     handle.set('user', user);
 

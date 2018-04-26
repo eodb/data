@@ -333,8 +333,9 @@ Store = Service.extend({
 
         let internalModel = this._buildInternalModel(normalizedModelName, properties.id);
         internalModel.loadedData();
-        // TODO WAT this exists just to proxy `isNew` to ModelData
+        // TODO this exists just to proxy `isNew` to ModelData which is weird
         internalModel.didCreateRecord();
+
         return internalModel.getRecord(properties);
       });
     });
@@ -1199,7 +1200,8 @@ Store = Service.extend({
     } = resource._relationship;
 
     let shouldFindViaLink = resource.links && resource.links.related
-      && (hasDematerializedInverse || relationshipIsStale || !hasRelatedResources);
+      && (hasDematerializedInverse || relationshipIsStale ||
+        (!hasRelatedResources && !relationshipIsEmpty));
 
     // fetch via link
     if (shouldFindViaLink) {
@@ -1214,7 +1216,7 @@ Store = Service.extend({
     }
 
     let preferLocalCache = hasAnyRelationshipData &&
-      hasRelatedResources &&
+      // hasRelatedResources &&
       !relationshipIsEmpty;
     let hasLocalPartialData = hasDematerializedInverse ||
       (relationshipIsEmpty &&
@@ -1298,7 +1300,8 @@ Store = Service.extend({
     } = resource._relationship;
 
     let shouldFindViaLink = resource.links && resource.links.related
-      && (hasDematerializedInverse || relationshipIsStale || !hasRelatedResources);
+      && (hasDematerializedInverse || relationshipIsStale ||
+        (!hasRelatedResources && !relationshipIsEmpty));
 
     // fetch via link
     if (shouldFindViaLink) {
@@ -1318,13 +1321,20 @@ Store = Service.extend({
       return this._findByInternalModel(internalModel);
     }
 
+    // null is explicit empty, undefined is "we don't know anything"
     let localDataIsEmpty = resource.data === undefined || resource.data === null;
+    let resourceIsLocal = !localDataIsEmpty && resource.data.id === null;
+
+    if (resourceIsLocal) {
+      let internalModel = this._internalModelForResource(resource.data);
+
+      return RSVP.resolve(internalModel.getRecord());
+    }
 
     // fetch by data
     if (!localDataIsEmpty) {
       let internalModel = this._internalModelForResource(resource.data);
 
-      // TODO this seems like a troll
       return this._fetchRecord(internalModel).then(() => {
         return internalModel.getRecord();
       });

@@ -8,6 +8,8 @@ export default class ManyRelationship extends Relationship {
     super(store, inverseKey, relationshipMeta, modelData, inverseIsAsync);
     this.canonicalState = [];
     this.currentState = [];
+    this._willUpdateManyArray = false;
+    this._pendingManyArrayUpdates = null;
   }
 
   removeInverseRelationships() {

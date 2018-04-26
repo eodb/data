@@ -247,9 +247,7 @@ export default class ModelData {
   // get ResourceIdentifiers for "current state"
   //   TODO should this return ModelDatas for API consistency?
   getHasMany(key) {
-    let relationship = this._relationships.get(key);
-    // debugger;
-    return relationship.getData();
+    return this._relationships.get(key).getData();
   }
 
   // set a new "current state" via ResourceIdentifiers
@@ -286,9 +284,7 @@ export default class ModelData {
   }
 
   getBelongsTo(key) {
-    let relationship = this._relationships.get(key);
-    // debugger;
-    return relationship.getData();
+    return this._relationships.get(key).getData();
   }
 
   setDirtyBelongsTo(key, value) {

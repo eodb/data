@@ -155,6 +155,12 @@ export default EmberObject.extend(MutableArray, Evented, {
   },
 
   objectAt(index) {
+    // TODO we likely need to force flush here
+    /*
+    if (this.relationship._willUpdateManyArray) {
+      this.relationship._flushPendingManyArrayUpdates();
+    }
+    */
     let internalModel = this.currentState[index];
     if (internalModel === undefined) { return; }
 
