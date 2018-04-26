@@ -96,9 +96,33 @@ export default class ModelData {
       // in debug, assert payload validity eagerly
       let relationshipData = data.relationships[relationshipName];
       if (DEBUG) {
+        let store = this.store;
+        let modelData = this;
         let relationshipMeta = relationships[relationshipName];
         if (!relationshipData || !relationshipMeta) {
           continue;
+        }
+
+        // eslint-disable-next-line no-inner-declarations
+        function assertRelationshipData(store, modelData, data, meta) {
+          assert(
+            `Encountered a relationship identifier without a type for the ${meta.kind} relationship '${meta.key}' on ${modelData}, expected a json-api identifier with type '${meta.type}'.`,
+            data === null || (typeof data.type === 'string' && data.type.length)
+          );
+          assert(
+            `Encountered a relationship identifier without an id for the ${meta.kind} relationship '${meta.key}' on ${modelData}, expected a json-api identifier.`,
+            data === null || data.id || data.id === 0
+          );
+          assert(
+            `Encountered a relationship identifier with type '${
+                data.type
+              }' for the ${meta.kind} relationship '${meta.key}' on ${
+                modelData
+              }, Expected a json-api identifier with type '${
+                meta.type
+              }'. No model was found for '${data.type}'.`,
+            data === null || !data.type || store._hasModelFor(data.type)
+          );
         }
 
         if (relationshipData.links) {
@@ -109,8 +133,14 @@ export default class ModelData {
         } else if (relationshipData.data) {
           if (relationshipMeta.kind === 'belongsTo') {
             assert(`A ${this.modelName} record was pushed into the store with the value of ${relationshipName} being ${inspect(relationshipData.data)}, but ${relationshipName} is a belongsTo relationship so the value must not be an array. You should probably check your data payload or serializer.`, !Array.isArray(relationshipData.data));
+            assertRelationshipData(store, modelData, relationshipData.data, relationshipMeta);
           } else if (relationshipMeta.kind === 'hasMany') {
             assert(`A ${this.modelName} record was pushed into the store with the value of ${relationshipName} being '${inspect(relationshipData.data)}', but ${relationshipName} is a hasMany relationship so the value must be an array. You should probably check your data payload or serializer.`, Array.isArray(relationshipData.data));
+            if (Array.isArray(relationshipData.data)) {
+              for (let i = 0; i < relationshipData.data.length; i++) {
+                assertRelationshipData(store, modelData, relationshipData.data[i], relationshipMeta);
+              }
+            }
           }
         }
       }

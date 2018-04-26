@@ -242,7 +242,9 @@ test('can unload all records for a given type', function(assert) {
    Because of this, there should be no way to resurrect the relationship without
    receiving new relationship info which does not occur in this test.
 
-   He checked how master manages to do this, and discovered bad things.
+   He checked how master manages to do this, and discovered bad things. TL;DR
+   because the `person` relationship is never materialized, it's state was
+   not cleared on unload, and thus the client-side delete never happened as intended.
   */
   // assert.equal(person.get('id'), '1', 'Inverse can load relationship after the record is unloaded');
   // assert.equal(person.get('name'), 'Richard II', 'Inverse can load relationship after the record is unloaded');

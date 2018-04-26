@@ -1300,8 +1300,6 @@ Store = Service.extend({
     let shouldFindViaLink = resource.links && resource.links.related
       && (hasDematerializedInverse || relationshipIsStale || !hasRelatedResources);
 
-    debugger;
-
     // fetch via link
     if (shouldFindViaLink) {
       return this._fetchBelongsToLinkFromResource(resource, parentInternalModel, relationshipMeta);
