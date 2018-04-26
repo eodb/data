@@ -21,7 +21,6 @@ export default class BelongsToRelationship extends Relationship {
     this.setHasAnyRelationshipData(true);
     this.setRelationshipIsStale(false);
     this.setRelationshipIsEmpty(false);
-    this.setHasRelatedResources(!this.localStateIsEmpty());
   }
 
   setCanonicalModelData(modelData) {

@@ -20,7 +20,6 @@ import Model from './model/model';
 import normalizeModelName from "./normalize-model-name";
 import IdentityMap from './identity-map';
 import ModelDataWrapper from './store/model-data-wrapper';
-import ManyArray from './many-array';
 
 import {
   promiseArray,
@@ -1186,6 +1185,72 @@ Store = Service.extend({
 
     return _findHasMany(adapter, this, internalModel, link, relationship);
   },
+
+  _findHasManyByJsonApiResource(resource, parentInternalModel, relationshipMeta) {
+    if (!resource) {
+      return RSVP.resolve([]);
+    }
+
+    let {
+      relationshipIsStale,
+      hasRelatedResources,
+      hasDematerializedInverse,
+      hasAnyRelationshipData,
+      relationshipIsEmpty
+    } = resource._relationship;
+
+    let shouldFindViaLink = resource.links && resource.links.related
+      && (hasDematerializedInverse || relationshipIsStale || !hasRelatedResources);
+
+    // fetch via link
+    if (shouldFindViaLink) {
+      return this.findHasMany(parentInternalModel, resource.links.related, relationshipMeta).then(internalModels => {
+        let payload = { data: internalModels.map((im) => im._modelData.getResourceIdentifier()) };
+        if (internalModels.meta !== undefined) {
+          payload.meta = internalModels.meta;
+        }
+        parentInternalModel.linkWasLoadedForRelationship(relationshipMeta.key, payload);
+        return internalModels;
+      });
+    }
+
+    let preferLocalCache = hasAnyRelationshipData &&
+      hasRelatedResources &&
+      !relationshipIsEmpty;
+    let hasLocalPartialData = hasDematerializedInverse ||
+      (relationshipIsEmpty &&
+      Array.isArray(resource.data) &&
+      resource.data.length > 0);
+
+    // fetch using data, pulling from local cache if possible
+    if (!relationshipIsStale && (preferLocalCache || hasLocalPartialData)) {
+      let internalModels = resource.data.map((json) => this._internalModelForResource(json));
+
+      return this.findMany(internalModels);
+    }
+
+    let hasData = hasAnyRelationshipData && !relationshipIsEmpty;
+
+    // fetch by data
+    if (hasData || hasLocalPartialData) {
+      let internalModels = resource.data.map((json) => this._internalModelForResource(json));
+
+      return this._scheduleFetchMany(internalModels);
+    }
+
+    // we were explicitly told we have no data and no links.
+    //   TODO if the relationshipIsStale, should we hit the adapter anyway?
+    return RSVP.resolve([]);
+  },
+
+  _getHasManyByJsonApiResource(resource) {
+    let internalModels = [];
+    if (resource && resource.data) {
+      internalModels = resource.data.map((reference) => this._internalModelForResource(reference));
+    }
+    return internalModels;
+  },
+
 
   /**
     @method findBelongsTo
@@ -2373,20 +2438,7 @@ Store = Service.extend({
     return internalModel.reloadHasMany(key);
   },
 
-  _manyArrayFor(modelName, modelData, meta, key, isPolymorphic, initialState, internalModel) {
-    return ManyArray.create({
-      store: this,
-      type: this.modelFor(modelName),
-      modelData: modelData,
-      meta: meta,
-      key: key,
-      isPolymorphic: isPolymorphic,
-      initialState: initialState.slice(),
-      internalModel: internalModel
-    });
-  },
-
-  _relationshipFor(modelName, id, key) {
+  _relationshipMetaFor(modelName, id, key) {
     let modelClass = this.modelFor(modelName);
     let relationshipsByName = get(modelClass, 'relationshipsByName');
     return relationshipsByName.get(key);
@@ -2417,57 +2469,6 @@ Store = Service.extend({
       // TODO Igor this doesn't seem like the right boundary, probably the caller method should extract the record out
       return internalModel.getRecord();
     });
-  },
-
-  _fetchHasManyLinkFromResource(resource, parentInternalModel, relationshipMeta) {
-    return this.findHasMany(parentInternalModel, resource.links.related, relationshipMeta).then(internalModels => {
-      let payload = { data: internalModels.map((im) => im._modelData.getResourceIdentifier()) };
-      if (internalModels.meta !== undefined) {
-        payload.meta = internalModels.meta;
-      }
-      parentInternalModel.linkWasLoadedForRelationship(relationshipMeta.key, payload);
-      return internalModels;
-    });
-  },
-
-  _fetchHasManyByData(resource) {
-    let internalModels = resource.data.map((json) => this._internalModelForResource(json));
-    return { promise: this._scheduleFetchMany(internalModels) };
-  },
-
-  _fetchHasManyByLink(resource, parentInternalModel, relationshipMeta) {
-    let promise = this._fetchHasManyLinkFromResource(resource, parentInternalModel, relationshipMeta);
-    return { promise };
-  },
-
-  _findHasManyAsync(resource, parentInternalModel, relationshipMeta) {
-    if (!resource) {
-      return { promise: RSVP.resolve([]) };
-    }
-
-    let {
-      relationshipIsStale,
-      hasRelatedResources,
-      hasAnyRelationshipData,
-      relationshipIsEmpty
-    } = resource._relationship;
-
-    let shouldFindViaLink = resource.links && resource.links.related
-     && (relationshipIsStale || !hasRelatedResources);
-
-    if (shouldFindViaLink) {
-      return this._fetchHasManyByLink(resource, parentInternalModel, relationshipMeta);
-    }
-    if (!relationshipIsStale && hasAnyRelationshipData && hasRelatedResources && !relationshipIsEmpty) {
-      let internalModels = resource.data.map((json) => this._internalModelForResource(json));
-
-      return { promise: this.findMany(internalModels) };
-    }
-    if (hasAnyRelationshipData && !relationshipIsEmpty) {
-      return this._fetchHasManyByData(resource);
-    }
-
-    return { promise: RSVP.resolve([]) };
   },
 
   // TODO IGOR
@@ -2509,19 +2510,6 @@ Store = Service.extend({
         return toReturn;
       }
     }
-  },
-
-  _findHasManyByJsonApiResource(resource, parentInternalModel, relationshipMeta) {
-    let { promise } = this._findHasManyAsync(resource, parentInternalModel, relationshipMeta);
-    return promise;
-  },
-
-  _getHasManyByJsonApiResource(resource) {
-    let internalModels = [];
-    if (resource && resource.data) {
-      internalModels = resource.data.map((reference) => this._internalModelForResource(reference));
-    }
-    return internalModels;
   },
 
   _createModelData(modelName, id, clientId, internalModel) {

@@ -113,8 +113,8 @@ export default EmberObject.extend(MutableArray, Evented, {
     @property {Object} meta
     @public
     */
-    // TODO IGOR make sure to bring back
-    // this.meta = this.meta ||  null;
+    // TODO this is likely broken in our refactor
+    this.meta = this.meta || null;
 
     /**
     `true` if the relationship is polymorphic, `false` otherwise.
@@ -133,17 +133,6 @@ export default EmberObject.extend(MutableArray, Evented, {
     this.currentState = [];
     this.flushCanonical(this.initialState, false);
   },
-
-  /*
-  pushData(jsonApi) {
-    let toSet = [];
-    if (jsonApi.data) {
-      toSet = jsonApi.data.map((resource) => )
-
-    }
-
-  },
-  */
 
   // TODO: if(DEBUG)
   anyUnloaded() {
@@ -210,6 +199,7 @@ export default EmberObject.extend(MutableArray, Evented, {
   // but current code is this way so shouldn't be too big of a problem
   retrieveLatest() {
     let jsonApi = this.get('modelData').getHasMany(this.get('key'));
+    // TODO this is odd, why should ManyArray ever tell itself to resync?
     let internalModels = this.store._getHasManyByJsonApiResource(jsonApi);
     if (jsonApi.meta) {
       this.set('meta', jsonApi.meta);
@@ -241,6 +231,7 @@ export default EmberObject.extend(MutableArray, Evented, {
     @public
   */
   reload() {
+    // TODO this is odd, we don't ask the store for anything else like this?
     return this.get('store').reloadManyArray(this, this.get('internalModel'), this.get('key'));
   },
 

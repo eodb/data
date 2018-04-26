@@ -68,7 +68,6 @@ export default class Relationship {
     //This probably breaks for polymorphic relationship in complex scenarios, due to
     //multiple possible modelNames
     this.inverseKeyForImplicit = this._tempModelName + this.key;
-    this.linkPromise = null;
     this.meta = null;
     this.__inverseMeta = undefined;
 
@@ -79,17 +78,29 @@ export default class Relationship {
         it is accessed.
 
       false when
-        => modelData.isNew() on initial setup
+        => initial setup
         => a previously triggered request has resolved
         => we get relationship data via push
 
       true when
-        => !modelData.isNew() on initial setup
-        => an inverse has been unloaded
         => relationship.reload() has been called
         => we get a new link for the relationship
      */
-    this.relationshipIsStale = !modelData.isNew();
+    this.relationshipIsStale = false;
+
+    /*
+     This flag indicates whether we should
+      **partially** re-fetch the relationship the
+      next time it is accessed.
+
+    false when
+      => initial setup
+      => a previously triggered request has resolved
+
+    true when
+      => an inverse has been unloaded
+    */
+    this.hasDematerializedInverse = false;
 
     /*
       This flag indicates whether we should consider the content
@@ -138,20 +149,26 @@ export default class Relationship {
     this.relationshipIsEmpty = true;
 
     /*
+      Flag def here for reference, defined as getter below
+
       true when
         => hasAnyRelationshipData is true
         AND
         => members (NOT canonicalMembers) @each !isEmpty
 
       TODO, consider changing the conditional here from !isEmpty to !hiddenFromRecordArrays
-     */
-    this.hasRelatedResources = false;
+    */
+    // this.hasRelatedResources = false;
 
     // TODO do we want this anymore? Seems somewhat useful
     //   especially if we rename to `hasUpdatedLink`
     //   which would tell us slightly more about why the
     //   relationship is stale
     this.updatedLink = false;
+  }
+
+  get hasRelatedResources() {
+    return !this.localStateIsEmpty();
   }
 
   _inverseIsAsync() {
@@ -214,7 +231,7 @@ export default class Relationship {
   }
 
   inverseDidDematerialize(inverseModelData) {
-    this.setRelationshipIsStale(true);
+    this.setHasDematerializedInverse(true);
 
     if (!this.isAsync) {
       // unloading inverse of a sync relationship is treated as a client-side
@@ -512,8 +529,8 @@ export default class Relationship {
     this.hasAnyRelationshipData = value;
   }
 
-  setHasRelatedResources(v) {
-    this.hasRelatedResources = v;
+  setHasDematerializedInverse(value) {
+    this.hasDematerializedInverse = value;
   }
 
   setRelationshipIsStale(value) {
@@ -563,6 +580,7 @@ export default class Relationship {
      IF contains both links and data
       relationshipIsEmpty -> true if is empty array (has-many) or is null (belongs-to)
       hasAnyRelationshipData -> true
+      hasDematerializedInverse -> false
       relationshipIsStale -> false
       hasRelatedResources -> run-check-to-determine
 
@@ -575,10 +593,8 @@ export default class Relationship {
 
       this.setHasAnyRelationshipData(true);
       this.setRelationshipIsStale(false);
+      this.setHasDematerializedInverse(false);
       this.setRelationshipIsEmpty(relationshipIsEmpty);
-      this.setHasRelatedResources(
-        relationshipIsEmpty || !this.localStateIsEmpty()
-      );
     } else if (hasLink) {
       this.setRelationshipIsStale(true);
     }

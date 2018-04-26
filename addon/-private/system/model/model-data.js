@@ -18,6 +18,7 @@ export default class ModelData {
     this.id = id;
     this.storeWrapper = storeWrapper;
     this.isDestroyed = false;
+    this._isNew = false;
     // Used during the mark phase of unloading to avoid checking the same internal
     // model twice in the same scan
     this._bfsId = 0;
@@ -73,21 +74,13 @@ export default class ModelData {
   isEmpty() {
     return this.__attributes === null &&
       this.__inFlightAttributes === null &&
-      this._data === null;
+      this.__data === null;
   }
 
   reset() {
     this.__attributes = null;
     this.__inFlightAttributes = null;
-    this._data = null;
-  }
-
-  addToHasMany(key, modelDatas, idx) {
-    this._relationships.get(key).addModelDatas(modelDatas, idx);
-  }
-
-  removeFromHasMany(key, modelDatas) {
-    this._relationships.get(key).removeModelDatas(modelDatas);
+    this.__data = null;
   }
 
   _setupRelationships(data) {
@@ -122,6 +115,7 @@ export default class ModelData {
         }
       }
       let relationship = this._relationships.get(relationshipName);
+
       relationship.push(relationshipData);
     }
   }
@@ -220,14 +214,32 @@ export default class ModelData {
     return changedKeys;
   }
 
+  // get ResourceIdentifiers for "current state"
+  //   TODO should this return ModelDatas for API consistency?
   getHasMany(key) {
-    return this._relationships.get(key).getData();
+    let relationship = this._relationships.get(key);
+    // debugger;
+    return relationship.getData();
   }
 
+  // set a new "current state" via ResourceIdentifiers
+  //   TODO should this take in ModelDatas for API consistency?
   setDirtyHasMany(key, resources) {
     let relationship = this._relationships.get(key);
     relationship.clear();
     relationship.addModelDatas(resources.map(resource => this.storeWrapper.modelDataFor(resource.type, resource.id, resource.clientId)));
+  }
+
+  // append to "current state" via ModelDatas
+  //   TODO should this take in ResourceIdentifiers for API consistency?
+  addToHasMany(key, modelDatas, idx) {
+    this._relationships.get(key).addModelDatas(modelDatas, idx);
+  }
+
+  // remove from "current state" via ModelDatas
+  //   TODO should this take in ResourceIdentifiers for API consistency?
+  removeFromHasMany(key, modelDatas) {
+    this._relationships.get(key).removeModelDatas(modelDatas);
   }
 
   commitWasRejected() {

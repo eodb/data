@@ -11,6 +11,7 @@ import RootState from "./states";
 import Snapshot from "../snapshot";
 import OrderedSet from "../ordered-set";
 import isArrayLike from "../is-array-like";
+import ManyArray from '../many-array';
 
 import { PromiseManyArray } from '../promise-proxies';
 import { getOwner } from '../../utils';
@@ -457,73 +458,74 @@ export default class InternalModel {
 
   getBelongsTo(key) {
     let jsonApi = this._modelData.getBelongsTo(key);
-    let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
+    let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
     return this.store._findByJsonApiResource(jsonApi, this, relationshipMeta);
   }
 
-  // TODO Igor move invocations of manyArray to getManyArray
   // TODO Igor consider getting rid of initial state
-  manyArray(relationshipMeta, jsonApi) {
-    let key = relationshipMeta.key;
-    let initialState = this.store._getHasManyByJsonApiResource(jsonApi);
-
+  getManyArray(key) {
+    let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
+    let jsonApi = this._modelData.getHasMany(key);
     let manyArray = this._manyArrayCache[key];
-    assert(`Error: relationship ${this.parentType}:${this.key} has both many array and retained many array`, !manyArray || !this._retainedManyArrayCache[key]);
+
+    assert(`Error: relationship ${this.modelName}:${key} has both many array and retained many array`, !manyArray || !this._retainedManyArrayCache[key]);
+
     if (!manyArray) {
-      manyArray = this.store._manyArrayFor(
-        relationshipMeta.type,
-        this._modelData,
-        jsonApi.meta,
-        relationshipMeta.key,
-        relationshipMeta.options.polymorphic,
-        initialState,
-        this
-      );
+      let initialState = this.store._getHasManyByJsonApiResource(jsonApi);
+
+      manyArray = ManyArray.create({
+        store: this.store,
+        type: this.store.modelFor(relationshipMeta.type),
+        modelData: this._modelData,
+        meta: jsonApi.meta,
+        key,
+        isPolymorphic: relationshipMeta.options.polymorphic,
+        initialState: initialState.slice(),
+        internalModel: this
+      });
       this._manyArrayCache[key] = manyArray;
     }
+
     if (this._retainedManyArrayCache[key]) {
       this._retainedManyArrayCache[key].destroy();
       delete this._retainedManyArrayCache[key];
     }
+
     return manyArray;
   }
 
-  getManyArray(key) {
-    let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
-    let jsonApi = this._modelData.getHasMany(key);
-    return this.manyArray(relationshipMeta, jsonApi);
-  }
-
-  fetchAsyncHasMany(relationshipMeta, jsonApi) {
-    let manyArray = this.manyArray(relationshipMeta, jsonApi);
+  fetchAsyncHasMany(relationshipMeta, jsonApi, manyArray) {
     let promise = this.store._findHasManyByJsonApiResource(jsonApi, this, relationshipMeta);
     promise = promise.then((initialState) => {
+      // TODO why don't we do this in the store method
       manyArray.retrieveLatest();
       manyArray.set('isLoaded', true);
-      // TODO Igor probably don't need initialState
-      return this.manyArray(relationshipMeta, jsonApi);
+
+      return manyArray;
     });
-    return { promise, content: manyArray };
+    return promise;
   }
 
   getHasMany(key) {
     let jsonApi = this._modelData.getHasMany(key);
-    let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
+    let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
     let async = relationshipMeta.options.async;
     let isAsync = typeof async === 'undefined' ? true : async;
+    let manyArray = this.getManyArray(key);
 
     if (isAsync) {
       let promiseArray = this._relationshipPromisesCache[key];
 
       if (!promiseArray) {
-        promiseArray = PromiseManyArray.create(this.fetchAsyncHasMany(relationshipMeta, jsonApi));
+        promiseArray = PromiseManyArray.create({
+          promise: this.fetchAsyncHasMany(relationshipMeta, jsonApi, manyArray),
+          content: manyArray
+        });
         this._relationshipPromisesCache[key] = promiseArray;
       }
 
       return promiseArray;
     } else {
-      let manyArray = this.manyArray(relationshipMeta, jsonApi);
-
       manyArray.set('isLoaded', true);
       assert(`You looked up the '${key}' relationship on a '${this.type.modelName}' with id ${this.id} but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async ('DS.hasMany({ async: true })')`, !manyArray.anyUnloaded());
 
@@ -563,16 +565,9 @@ export default class InternalModel {
 
     let jsonApi = this._modelData.getHasMany(key);
     jsonApi._relationship.setRelationshipIsStale(true);
-    let relationshipMeta = this.store._relationshipFor(this.modelName, null, key);
-    let promise;
-
-    if (jsonApi.links && jsonApi.links.related) {
-      promise = this.fetchAsyncHasMany(relationshipMeta, jsonApi).promise;
-    } else {
-      let internalModels = this.store._getHasManyByJsonApiResource(jsonApi);
-      let manyArray = this.manyArray(relationshipMeta, jsonApi);
-      promise = this.store._scheduleFetchMany(internalModels).then(() => manyArray);
-    }
+    let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
+    let manyArray = this.getManyArray(key);
+    let promise = this.fetchAsyncHasMany(relationshipMeta, jsonApi, manyArray);
 
     // TODO igor Seems like this would mess with promiseArray wrapping, investigate
     this._updateLoadingPromiseForHasMany(key, promise);

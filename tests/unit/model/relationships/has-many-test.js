@@ -1959,7 +1959,7 @@ test('DS.hasMany proxy is destroyed', function(assert) {
       assert.equal(people.isDestroying, false, 'people is NOT destroying sync after unloadRecord');
       assert.equal(people.isDestroyed, false, 'people is NOT destroyed sync after unloadRecord');
       // TODO Check if this matters
-      assert.equal(peopleProxy.isDestroying, false, 'peopleProxy is destroying sync after unloadRecord');
+      assert.equal(peopleProxy.isDestroying, true, 'peopleProxy is destroying sync after unloadRecord');
       assert.equal(peopleProxy.isDestroyed, false, 'peopleProxy is NOT YET destroyed sync after unloadRecord');
     });
 

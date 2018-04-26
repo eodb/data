@@ -227,7 +227,7 @@ export default class Snapshot {
       return this._belongsToRelationships[keyName];
     }
 
-    let relationshipMeta = store._relationshipFor(this.modelName, null, keyName);
+    let relationshipMeta = store._relationshipMetaFor(this.modelName, null, keyName);
     if (!(relationshipMeta && relationshipMeta.kind === 'belongsTo')) {
       throw new EmberError("Model '" + inspect(this.record) + "' has no belongsTo relationship named '" + keyName + "' defined.");
     }
@@ -303,7 +303,7 @@ export default class Snapshot {
     }
 
     let store = this._internalModel.store;
-    let relationshipMeta = store._relationshipFor(this.modelName, null, keyName);
+    let relationshipMeta = store._relationshipMetaFor(this.modelName, null, keyName);
     if (!(relationshipMeta && relationshipMeta.kind === 'hasMany')) {
       throw new EmberError("Model '" + inspect(this.record) + "' has no hasMany relationship named '" + keyName + "' defined.");
     }
