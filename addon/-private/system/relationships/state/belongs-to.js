@@ -153,6 +153,7 @@ export default class BelongsToRelationship extends Relationship {
       data = this.inverseModelData.getResourceIdentifier();
     }
     if (this.inverseModelData === null && this.hasAnyRelationshipData) {
+      debugger;
       data = null;
     }
     if (this.link) {

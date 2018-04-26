@@ -162,7 +162,7 @@ test('can unload a single record', function(assert) {
 });
 
 test('can unload all records for a given type', function(assert) {
-  assert.expect(11);
+  assert.expect(10);
 
   let adam, bob, dudu;
   run(function() {
@@ -228,8 +228,24 @@ test('can unload all records for a given type', function(assert) {
     });
   });
 
-  assert.equal(env.store.peekRecord('car', 1).get('person.id'), '1', 'Inverse can load relationship after the record is unloaded');
-  assert.equal(env.store.peekRecord('car', 1).get('person.name'), 'Richard II', 'Inverse can load relationship after the record is unloaded');
+  let car = env.store.peekRecord('car', 1);
+  let person = car.get('person');
+
+  assert.ok(!!car, 'We have a car');
+  assert.ok(!person, 'We dont have a person');
+
+  /*
+   @runspired believes these asserts were incorrect on master.
+   Basically, we intentionally treat unload on a sync belongsTo as client-side
+   delete bc "bad reason" of legacy support for the mis-use of unloadRecord.
+
+   Because of this, there should be no way to resurrect the relationship without
+   receiving new relationship info which does not occur in this test.
+
+   He checked how master manages to do this, and discovered bad things.
+  */
+  // assert.equal(person.get('id'), '1', 'Inverse can load relationship after the record is unloaded');
+  // assert.equal(person.get('name'), 'Richard II', 'Inverse can load relationship after the record is unloaded');
 });
 
 test('can unload all records', function(assert) {
