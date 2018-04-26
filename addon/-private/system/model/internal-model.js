@@ -12,8 +12,10 @@ import Snapshot from "../snapshot";
 import OrderedSet from "../ordered-set";
 import isArrayLike from "../is-array-like";
 import ManyArray from '../many-array';
-
-import { PromiseManyArray } from '../promise-proxies';
+import {
+  PromiseBelongsTo,
+  PromiseManyArray
+} from '../promise-proxies';
 import { getOwner } from '../../utils';
 
 import {
@@ -457,9 +459,30 @@ export default class InternalModel {
   }
 
   getBelongsTo(key) {
-    let jsonApi = this._modelData.getBelongsTo(key);
+    let resource = this._modelData.getBelongsTo(key);
     let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
-    return this.store._findByJsonApiResource(jsonApi, this, relationshipMeta);
+    let store = this.store;
+    let parentInternalModel = this;
+    let async = relationshipMeta.options.async;
+    let isAsync = typeof async === 'undefined' ? true : async;
+
+    if (isAsync) {
+      let internalModel = resource && resource.data ? store._internalModelForResource(resource.data) : null;
+      return PromiseBelongsTo.create({
+        _belongsToState: resource._relationship,
+        promise: store._findBelongsToByJsonApiResource(resource, parentInternalModel, relationshipMeta),
+        content: internalModel ? internalModel.getRecord() : null
+      });
+    } else {
+      if (!resource || !resource.data) {
+        return null;
+      } else {
+        let internalModel = store._internalModelForResource(resource.data);
+        let toReturn = internalModel.getRecord();
+        assert("You looked up the '" + key + "' relationship on a '" + parentInternalModel.modelName + "' with id " + parentInternalModel.id +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.belongsTo({ async: true })`)", toReturn === null || !toReturn.get('isEmpty'));
+        return toReturn;
+      }
+    }
   }
 
   // TODO Igor consider getting rid of initial state
@@ -572,6 +595,14 @@ export default class InternalModel {
     // TODO igor Seems like this would mess with promiseArray wrapping, investigate
     this._updateLoadingPromiseForHasMany(key, promise);
     return promise;
+  }
+
+  reloadBelongsTo(key) {
+    let resource = this._modelData.getBelongsTo(key);
+    resource._relationship.setRelationshipIsStale(true);
+    let relationshipMeta = this.store._relationshipMetaFor(this.modelName, null, key);
+
+    return this.store._findBelongsToByJsonApiResource(resource, this, relationshipMeta);
   }
 
   destroyFromModelData() {

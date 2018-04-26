@@ -256,7 +256,9 @@ export default class ModelData {
   }
 
   getBelongsTo(key) {
-    return this._relationships.get(key).getData();
+    let relationship = this._relationships.get(key);
+    // debugger;
+    return relationship.getData();
   }
 
   setDirtyBelongsTo(key, value) {

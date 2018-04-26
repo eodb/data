@@ -45,7 +45,6 @@ export default class BelongsToRelationship extends Relationship {
   }
 
   addCanonicalModelData(modelData) {
-    this.updatedLink = false;
     if (this.canonicalMembers.has(modelData)) { return;}
 
     if (this.canonicalState) {
@@ -96,7 +95,6 @@ export default class BelongsToRelationship extends Relationship {
   }
 
   addModelData(modelData) {
-    this.updatedLink = false;
     if (this.members.has(modelData)) { return; }
 
     // TODO Igor cleanup
@@ -168,16 +166,13 @@ export default class BelongsToRelationship extends Relationship {
     if (this.meta) {
       payload.meta = this.meta;
     }
-    // if link has been updated, we can't trust the local data anymore
-    // TODO IGOR check for local changes
-    if (this.updatedLink && this.link && payload.data) {
-      delete payload.data;
-    }
+
+    payload._relationship = this;
     return payload;
   }
 
   localStateIsEmpty() {
-    let modelData = this.modelData;
+    let modelData = this.inverseModelData;
 
     return !modelData || modelData.isEmpty();
   }

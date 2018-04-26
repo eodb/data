@@ -23,8 +23,7 @@ import ModelDataWrapper from './store/model-data-wrapper';
 
 import {
   promiseArray,
-  promiseObject,
-  PromiseObject
+  promiseObject
 } from "./promise-proxies";
 
 import {
@@ -1269,6 +1268,76 @@ Store = Service.extend({
     return _findBelongsTo(adapter, this, internalModel, link, relationship);
   },
 
+  _fetchBelongsToLinkFromResource(resource, parentInternalModel, relationshipMeta) {
+    if (!resource || !resource.links || !resource.links.related) {
+      // should we warn here, not sure cause its an internal method
+      return RSVP.resolve(null);
+    }
+    return this.findBelongsTo(parentInternalModel, resource.links.related, relationshipMeta).then((internalModel) => {
+      let response = internalModel && internalModel._modelData.getResourceIdentifier();
+      parentInternalModel.linkWasLoadedForRelationship(relationshipMeta.key, { data: response });
+      if (internalModel === null) {
+        return null;
+      }
+      // TODO Igor this doesn't seem like the right boundary, probably the caller method should extract the record out
+      return internalModel.getRecord();
+    });
+  },
+
+  _findBelongsToByJsonApiResource(resource, parentInternalModel, relationshipMeta) {
+    if (!resource) {
+      return RSVP.resolve(null);
+    }
+
+    let {
+      relationshipIsStale,
+      hasRelatedResources,
+      hasDematerializedInverse,
+      hasAnyRelationshipData,
+      relationshipIsEmpty
+    } = resource._relationship;
+
+    let shouldFindViaLink = resource.links && resource.links.related
+      && (hasDematerializedInverse || relationshipIsStale || !hasRelatedResources);
+
+    // debugger;
+
+    // fetch via link
+    if (shouldFindViaLink) {
+      return this._fetchBelongsToLinkFromResource(resource, parentInternalModel, relationshipMeta);
+    }
+
+    let preferLocalCache = hasAnyRelationshipData &&
+      hasRelatedResources &&
+      !relationshipIsEmpty;
+    let hasLocalPartialData = hasDematerializedInverse ||
+      (relationshipIsEmpty && resource.data);
+
+    // fetch using data, pulling from local cache if possible
+    if (!relationshipIsStale && (preferLocalCache || hasLocalPartialData)) {
+      let internalModel = this._internalModelForResource(resource.data);
+
+      return this._findByInternalModel(internalModel);
+    }
+
+    let localDataIsEmpty = resource.data === null;
+
+    // fetch by data
+    if (!localDataIsEmpty) {
+      let internalModel = this._internalModelForResource(resource.data);
+
+      // TODO this seems like a troll
+      return this._fetchRecord(internalModel).then(() => {
+        return internalModel.getRecord();
+      });
+    }
+
+    // we were explicitly told we have no data and no links.
+    //   TODO if the relationshipIsStale, should we hit the adapter anyway?
+    return RSVP.resolve(null);
+  },
+
+
   /**
     This method delegates a query to the adapter. This is the one place where
     adapter-level semantics are exposed to the application.
@@ -2438,6 +2507,10 @@ Store = Service.extend({
     return internalModel.reloadHasMany(key);
   },
 
+  reloadBelongsTo(belongsToProxy, internalModel, key) {
+    return internalModel.reloadBelongsTo(key)
+  },
+
   _relationshipMetaFor(modelName, id, key) {
     let modelClass = this.modelFor(modelName);
     let relationshipsByName = get(modelClass, 'relationshipsByName');
@@ -2453,63 +2526,6 @@ Store = Service.extend({
       internalModel = this._internalModelForId(resource.type, resource.id);
     }
     return internalModel;
-  },
-
-  _fetchBelongsToLinkFromResource(resource, parentInternalModel, relationshipMeta) {
-    if (!resource || !resource.links || !resource.links.related) {
-      // should we warn here, not sure cause its an internal method
-      return RSVP.resolve(null);
-    }
-    return this.findBelongsTo(parentInternalModel, resource.links.related, relationshipMeta).then((internalModel) => {
-      let response = internalModel && internalModel._modelData.getResourceIdentifier();
-      parentInternalModel.linkWasLoadedForRelationship(relationshipMeta.key, { data: response });
-      if (internalModel === null) {
-        return null;
-      }
-      // TODO Igor this doesn't seem like the right boundary, probably the caller method should extract the record out
-      return internalModel.getRecord();
-    });
-  },
-
-  // TODO IGOR
-  // DO THE CHECK IF WE HAVE LOADED THE RECORD TO DECIDE WHETHER TO GO TO THE LINK
-  _findBelongsToAsync(resource, parentInternalModel, relationshipMeta) {
-    let promise, content;
-    if (!resource) {
-      return { promise: RSVP.resolve(null) };
-    }
-    if (resource.data !== undefined) {
-      if (resource.data && (resource.data.id || resource.data.clientId)) {
-        let internalModel = this._internalModelForResource(resource.data);
-        promise = this._findByInternalModel(internalModel);
-        content = internalModel.getRecord();
-        return { promise, content };
-      } else if (resource.data === null) {
-        return { promise: RSVP.resolve(null) }
-      }
-    }
-    if (resource.links && resource.links.related) {
-      let promise = this._fetchBelongsToLinkFromResource(resource, parentInternalModel, relationshipMeta);
-      return { promise };
-    }
-  },
-
-  _findByJsonApiResource(resource, parentInternalModel, relationshipMeta) {
-    let async = relationshipMeta.options.async;
-    let isAsync = typeof async === 'undefined' ? true : async;
-    let key = relationshipMeta.key;
-    if (isAsync) {
-      return PromiseObject.create(this._findBelongsToAsync(resource, parentInternalModel, relationshipMeta));
-    } else {
-      if (!resource || !resource.data) {
-        return null;
-      } else {
-        let internalModel = this._internalModelForResource(resource.data);
-        let toReturn = internalModel.getRecord();
-        assert("You looked up the '" + key + "' relationship on a '" + parentInternalModel.modelName + "' with id " + parentInternalModel.id +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.belongsTo({ async: true })`)", toReturn === null || !toReturn.get('isEmpty'));
-        return toReturn;
-      }
-    }
   },
 
   _createModelData(modelName, id, clientId, internalModel) {

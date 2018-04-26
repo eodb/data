@@ -164,7 +164,7 @@ export default class Relationship {
     //   especially if we rename to `hasUpdatedLink`
     //   which would tell us slightly more about why the
     //   relationship is stale
-    this.updatedLink = false;
+    // this.updatedLink = false;
   }
 
   get hasRelatedResources() {
@@ -491,19 +491,12 @@ export default class Relationship {
     this.store._updateRelationshipState(this);
   }
 
-  updateLink(link, initial, alsoUpdatedData) {
+  updateLink(link, initial) {
     heimdall.increment(updateLink);
     warn(`You pushed a record of type '${this.modelData.modelName}' with a relationship '${this.key}' configured as 'async: false'. You've included a link but no primary data, this may be an error in your payload.`, this.isAsync || this.hasAnyRelationshipData , {
       id: 'ds.store.push-link-for-sync-relationship'
     });
     assert(`You have pushed a record of type '${this.modelData.modelName}' with '${this.key}' as a link, but the value of that link is not a string.`, typeof link === 'string' || link === null);
-
-    // TODO hrm :/ not sure this is correct
-    if (!alsoUpdatedData) {
-      this.updatedLink = true;
-    } else {
-      this.updatedLink = false;
-    }
 
     this.link = link;
     this.setRelationshipIsStale(true);
@@ -568,7 +561,7 @@ export default class Relationship {
       let relatedLink = _normalizeLink(payload.links.related);
       if (relatedLink && relatedLink.href && relatedLink.href !== this.link) {
         hasLink = true;
-        this.updateLink(relatedLink.href, initial, hasRelationshipDataProperty);
+        this.updateLink(relatedLink.href, initial);
       }
     }
 
