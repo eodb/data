@@ -1318,7 +1318,7 @@ Store = Service.extend({
       return this._findByInternalModel(internalModel);
     }
 
-    let localDataIsEmpty = resource.data === null;
+    let localDataIsEmpty = resource.data === undefined || resource.data === null;
 
     // fetch by data
     if (!localDataIsEmpty) {
